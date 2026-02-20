@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Access Verify</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #080808;
+    --panel: #0f0f0f;
+    --border: #2a1515;
+    --accent: #e8000a;
+    --accent2: #ff4d00;
+    --denied: #e8000a;
+    --approved: #00e676;
+    --text: #e0c8c8;
+    --dim: #5c3030;
+  }
+
+  body {
+    background: var(--bg);
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Share Tech Mono', monospace;
+    color: var(--text);
+    overflow: hidden;
+    position: relative;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.1) 2px,
+      rgba(0,0,0,0.1) 4px
+    );
+    pointer-events: none;
+    z-index: 100;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(232,0,10,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(232,0,10,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+
+  .container {
+    width: min(380px, 92vw);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    z-index: 1;
+  }
+
+  .header {
+    width: 100%;
+    text-align: center;
+    margin-bottom: 28px;
+  }
+
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.8rem;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    text-shadow: 0 0 20px rgba(232,0,10,0.5), 0 0 60px rgba(232,0,10,0.2);
+    line-height: 1;
+  }
+
+  .sub {
+    font-size: 0.65rem;
+    letter-spacing: 0.4em;
+    color: var(--dim);
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  .card {
+    width: 100%;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 32px 28px;
+    position: relative;
+    box-shadow: 0 0 40px rgba(232,0,10,0.07), inset 0 1px 0 rgba(255,255,255,0.02);
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), var(--accent2), transparent);
+    border-radius: 4px 4px 0 0;
+  }
+
+  .label {
+    font-size: 0.6rem;
+    letter-spacing: 0.35em;
+    color: var(--dim);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    text-align: center;
+  }
+
+  /* Hidden input to trigger phone's native numeric keyboard */
+  #codeInput {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+    top: 0;
+    left: 0;
+    border: none;
+    outline: none;
+    pointer-events: none;
+  }
+
+  .display {
+    background: #060606;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+    cursor: text;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .display.focused {
+    border-color: rgba(232,0,10,0.5);
+    box-shadow: 0 0 20px rgba(232,0,10,0.1);
+  }
+
+  .display::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(232,0,10,0.03) 0%, transparent 100%);
+    pointer-events: none;
+  }
+
+  .digit-slot {
+    width: 38px;
+    height: 50px;
+    border-bottom: 2px solid var(--dim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.2rem;
+    color: var(--accent);
+    text-shadow: 0 0 10px rgba(232,0,10,0.6);
+    transition: border-color 0.2s;
+    position: relative;
+  }
+
+  .digit-slot.active {
+    border-color: var(--accent);
+  }
+
+  .digit-slot.active::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: var(--accent);
+    animation: blink 0.8s infinite;
+    box-shadow: 0 0 8px var(--accent);
+  }
+
+  @keyframes blink {
+    0%, 49% { opacity: 1; }
+    50%, 100% { opacity: 0; }
+  }
+
+  .tap-btn {
+    width: 100%;
+    background: rgba(232,0,10,0.08);
+    border: 1px solid rgba(232,0,10,0.3);
+    border-radius: 3px;
+    padding: 16px;
+    color: var(--accent);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.3em;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    -webkit-tap-highlight-color: transparent;
+    margin-bottom: 12px;
+  }
+
+  .tap-btn:active {
+    background: rgba(232,0,10,0.18);
+    box-shadow: 0 0 16px rgba(232,0,10,0.2);
+  }
+
+  .clear-btn {
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 12px;
+    color: var(--dim);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.3em;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .clear-btn:active {
+    border-color: var(--denied);
+    color: var(--denied);
+  }
+
+  .status-screen {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 24px;
+    animation: fadeIn 0.35s ease;
+  }
+
+  .status-screen.show { display: flex; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.94); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .approved-screen {
+    background: radial-gradient(ellipse at center, rgba(0,230,118,0.1) 0%, #080808 70%);
+  }
+
+  .denied-screen {
+    background: radial-gradient(ellipse at center, rgba(232,0,10,0.14) 0%, #080808 70%);
+  }
+
+  .status-icon {
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3.2rem;
+  }
+
+  .approved-screen .status-icon {
+    background: rgba(0,230,118,0.08);
+    border: 2px solid var(--approved);
+    animation: pulse-green 2s infinite;
+  }
+
+  .denied-screen .status-icon {
+    background: rgba(232,0,10,0.08);
+    border: 2px solid var(--denied);
+    animation: pulse-red 2s infinite;
+  }
+
+  @keyframes pulse-green {
+    0%, 100% { box-shadow: 0 0 40px rgba(0,230,118,0.3), 0 0 80px rgba(0,230,118,0.1); }
+    50% { box-shadow: 0 0 70px rgba(0,230,118,0.5), 0 0 130px rgba(0,230,118,0.2); }
+  }
+
+  @keyframes pulse-red {
+    0%, 100% { box-shadow: 0 0 40px rgba(232,0,10,0.4), 0 0 80px rgba(232,0,10,0.15); }
+    50% { box-shadow: 0 0 70px rgba(232,0,10,0.6), 0 0 130px rgba(232,0,10,0.25); }
+  }
+
+  .status-word {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 4.5rem;
+    letter-spacing: 0.2em;
+    line-height: 1;
+  }
+
+  .approved-screen .status-word {
+    color: var(--approved);
+    text-shadow: 0 0 30px rgba(0,230,118,0.5);
+  }
+
+  .denied-screen .status-word {
+    color: var(--denied);
+    text-shadow: 0 0 30px rgba(232,0,10,0.6);
+  }
+
+  .status-code {
+    font-size: 0.65rem;
+    letter-spacing: 0.4em;
+    color: var(--dim);
+  }
+
+  .try-again {
+    margin-top: 8px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--dim);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.3em;
+    padding: 14px 32px;
+    cursor: pointer;
+    transition: all 0.2s;
+    -webkit-tap-highlight-color: transparent;
+    text-transform: uppercase;
+  }
+
+  .try-again:active {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+</style>
+</head>
+<body>
+
+<!-- Hidden input — type="tel" + inputmode="numeric" triggers the number pad on phones -->
+<input id="codeInput" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="5" autocomplete="off">
+
+<div class="container">
+  <div class="header">
+    <div class="logo">VERIFY</div>
+    <div class="sub">Access Control Terminal</div>
+  </div>
+
+  <div class="card">
+    <div class="label">Enter 5-Digit Code</div>
+
+    <div class="display" id="display" onclick="focusInput()">
+      <div class="digit-slot active" id="s0">_</div>
+      <div class="digit-slot" id="s1">_</div>
+      <div class="digit-slot" id="s2">_</div>
+      <div class="digit-slot" id="s3">_</div>
+      <div class="digit-slot" id="s4">_</div>
+    </div>
+
+    <button class="tap-btn" onclick="focusInput()">▶ Tap to Enter Code</button>
+    <button class="clear-btn" onclick="clearCode()">Clear</button>
+  </div>
+</div>
+
+<div class="status-screen approved-screen" id="approvedScreen">
+  <div class="status-icon">✓</div>
+  <div class="status-word">APPROVED</div>
+  <div class="status-code" id="approvedCode"></div>
+  <button class="try-again" onclick="reset()">Try Another Code</button>
+</div>
+
+<div class="status-screen denied-screen" id="deniedScreen">
+  <div class="status-icon">✕</div>
+  <div class="status-word">DENIED</div>
+  <div class="status-code" id="deniedCode"></div>
+  <button class="try-again" onclick="reset()">Try Again</button>
+</div>
+
+<script>
+  const input = document.getElementById('codeInput');
+  const display = document.getElementById('display');
+  let submitted = false;
+
+  function focusInput() {
+    input.value = '';
+    submitted = false;
+    updateDisplay('');
+    input.focus();
+  }
+
+  function updateDisplay(val) {
+    for (let i = 0; i < 5; i++) {
+      const slot = document.getElementById('s' + i);
+      slot.textContent = val[i] || '_';
+      slot.classList.toggle('active', i === val.length && val.length < 5);
+    }
+    if (val.length === 5) {
+      document.querySelectorAll('.digit-slot').forEach(s => s.classList.remove('active'));
+    }
+  }
+
+  input.addEventListener('focus', () => display.classList.add('focused'));
+  input.addEventListener('blur', () => display.classList.remove('focused'));
+
+  input.addEventListener('input', () => {
+    let val = input.value.replace(/\D/g, '').slice(0, 5);
+    input.value = val;
+    updateDisplay(val);
+
+    if (val.length === 5 && !submitted) {
+      submitted = true;
+      input.blur();
+      setTimeout(() => submit(val), 250);
+    }
+  });
+
+  function submit(val) {
+    const num = parseInt(val, 10);
+    const approved = num >= 10100 && num <= 10315;
+
+    if (approved) {
+      document.getElementById('approvedCode').textContent = 'CODE ' + val + ' · ACCESS GRANTED';
+      document.getElementById('approvedScreen').classList.add('show');
+    } else {
+      document.getElementById('deniedCode').textContent = 'CODE ' + val + ' · ACCESS REFUSED';
+      document.getElementById('deniedScreen').classList.add('show');
+    }
+  }
+
+  function clearCode() {
+    input.value = '';
+    submitted = false;
+    updateDisplay('');
+    focusInput();
+  }
+
+  function reset() {
+    input.value = '';
+    submitted = false;
+    updateDisplay('');
+    document.querySelectorAll('.status-screen').forEach(s => s.classList.remove('show'));
+    setTimeout(() => document.getElementById('s0').classList.add('active'), 10);
+  }
+</script>
+</body>
+</html>
